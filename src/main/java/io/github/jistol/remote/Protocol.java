@@ -31,7 +31,7 @@ public enum Protocol
             rmiServiceExporter.setServiceName(beanName);
             if (remoteType.port() != -1)
             {
-                rmiServiceExporter.setServicePort(remoteType.port());
+                rmiServiceExporter.setRegistryPort(remoteType.port());
             }
             try
             {
