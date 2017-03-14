@@ -9,12 +9,18 @@
     <version>1.0.0</version>
 
     <name>Custom Spring Remote Annotation</name>
-    <description>Spring Annotation For Easy Remote (RMI/HTTP INVOKER)</description>
+    <description>
+        You can set up Spring RMI and HttpInvoker in only two steps.
+
+        Step 1. Set @EnableRemoteType on application main.
+
+        Step 2. Add @RemoteType on your service(or component, resource ...)
+    </description>
     <url>https://github.com/jistol/jistol-spring-remote</url>
 
     <licenses>
         <license>
-            <name>pache-2.0</name>
+            <name>apache-2.0</name>
             <url>https://opensource.org/licenses/Apache-2.0</url>
             <distribution>repo</distribution>
         </license>
