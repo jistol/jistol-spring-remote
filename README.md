@@ -1,5 +1,7 @@
 # jistol-spring-remote
 
+You can set up Spring RMI and HttpInvoker in only two steps.
+
 Maven Installation
 ----
 
@@ -11,8 +13,6 @@ Maven Installation
 		    </dependency>
 	    </dependencies>
 
-
-You can set up Spring RMI and HttpInvoker in only two steps.
 
 Step 1. Set @EnableRemoteType on application main.
 ----
