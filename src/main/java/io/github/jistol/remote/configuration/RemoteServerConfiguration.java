@@ -1,5 +1,6 @@
-package io.github.jistol.remote;
+package io.github.jistol.remote.configuration;
 
+import io.github.jistol.remote.annotation.RemoteServer;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Configuration;

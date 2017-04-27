@@ -1,5 +1,6 @@
-package io.github.jistol.remote;
+package io.github.jistol.remote.annotation;
 
+import io.github.jistol.remote.Protocol;
 import org.springframework.beans.factory.annotation.Required;
 
 import java.lang.annotation.ElementType;
@@ -12,12 +13,11 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })
-public @interface RemoteServer
+public @interface RemoteClient
 {
-    Protocol protocol() default Protocol.HTTP;
+    Protocol protocol() default Protocol.RMI;
 
-    int port() default -1;
+    @Required String ip();
 
-    @Required
-    Class<?> serviceInterface();
+    String port() default "";
 }
