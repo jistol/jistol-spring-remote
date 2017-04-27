@@ -12,8 +12,8 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })
-@Import(RemoteConfiguration.class)
-public @interface EnableRemoteType
+@Import(RemoteServerConfiguration.class)
+public @interface EnableRemote
 {
 
 }

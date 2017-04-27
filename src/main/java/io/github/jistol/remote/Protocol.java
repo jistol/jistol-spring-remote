@@ -13,9 +13,9 @@ public enum Protocol
 {
     HTTP {
         @Override
-        public Object getServiceExporter(Object bean, String beanName, RemoteType remoteType) {
+        public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer) {
             HttpInvokerServiceExporter httpInvokerServiceExporter = new HttpInvokerServiceExporter();
-            httpInvokerServiceExporter.setServiceInterface(remoteType.serviceInterface());
+            httpInvokerServiceExporter.setServiceInterface(remoteServer.serviceInterface());
             httpInvokerServiceExporter.setService(bean);
             httpInvokerServiceExporter.afterPropertiesSet();
             return httpInvokerServiceExporter;
@@ -24,14 +24,14 @@ public enum Protocol
 
     RMI {
         @Override
-        public Object getServiceExporter(Object bean, String beanName, RemoteType remoteType) {
+        public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer) {
             RmiServiceExporter rmiServiceExporter = new RmiServiceExporter();
-            rmiServiceExporter.setServiceInterface(remoteType.serviceInterface());
+            rmiServiceExporter.setServiceInterface(remoteServer.serviceInterface());
             rmiServiceExporter.setService(bean);
             rmiServiceExporter.setServiceName(beanName);
-            if (remoteType.port() != -1)
+            if (remoteServer.port() != -1)
             {
-                rmiServiceExporter.setRegistryPort(remoteType.port());
+                rmiServiceExporter.setRegistryPort(remoteServer.port());
             }
             try
             {
@@ -45,5 +45,5 @@ public enum Protocol
         }
     };
 
-    abstract public Object getServiceExporter(Object bean, String beanName, RemoteType remoteType);
+    abstract public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer);
 }

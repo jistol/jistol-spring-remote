@@ -9,7 +9,7 @@ import org.springframework.core.annotation.AnnotationUtils;
  * Created by kimjh on 2017-03-07.
  */
 @Configuration
-public class RemoteConfiguration implements BeanPostProcessor
+public class RemoteServerConfiguration implements BeanPostProcessor
 {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException
@@ -20,7 +20,7 @@ public class RemoteConfiguration implements BeanPostProcessor
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException
     {
-        RemoteType remoteType = AnnotationUtils.findAnnotation(bean.getClass(), RemoteType.class);
-        return (remoteType == null)? bean : remoteType.protocol().getServiceExporter(bean, beanName, remoteType);
+        RemoteServer remoteServer = AnnotationUtils.findAnnotation(bean.getClass(), RemoteServer.class);
+        return (remoteServer == null)? bean : remoteServer.protocol().getServiceExporter(bean, beanName, remoteServer);
     }
 }
