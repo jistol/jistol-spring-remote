@@ -1,67 +1,75 @@
 package io.github.jistol.remote.configuration;
 
-import io.github.jistol.remote.Protocol;
+import io.github.jistol.remote.annotation.EnableRemoteClient;
 import io.github.jistol.remote.annotation.RemoteClient;
-import io.github.jistol.remote.annotation.RemoteContext;
+import io.github.jistol.remote.exception.RemoteException;
+import io.github.jistol.remote.handler.RemoteClientInvocationHandler;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.FactoryBean;
-import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.StringUtils;
+import org.springframework.context.annotation.ImportAware;
+import org.springframework.core.annotation.AnnotationAttributes;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.type.AnnotationMetadata;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Proxy;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Stream;
 
 /**
  * Created by kimjh on 2017-03-07.
  */
 @Configuration
-public class RemoteClientConfiguration implements BeanPostProcessor, InvocationHandler
+public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostProcessor
 {
-    private static final ConcurrentMap<String, FactoryBean> rmiClientMap = new ConcurrentHashMap<>();
+    private static final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
 
-    @Override
-    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException
-    {
-        if (!bean.getClass().isInterface() || !bean.getClass().isAnnotationPresent(RemoteClient.class)) return bean;
-        Class<?> serviceInterface = bean.getClass();
-        return serviceInterface.cast(Proxy.newProxyInstance(serviceInterface.getClassLoader(), new Class[]{ serviceInterface }, this));
+    private Stream<Class<?>> findAnnotatedClasses(Class<? extends Annotation> annotation, String scanPackage) {
+        ClassPathScanningCandidateComponentProvider provider = new ClassPathScanningCandidateComponentProvider(false) {
+            @Override protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
+                System.out.println("### isCandidateComponent : " +  beanDefinition.toString());
+                return true;
+            }
+        };
+        provider.addIncludeFilter(new AnnotationTypeFilter(annotation));
+        provider.setResourceLoader(new PathMatchingResourcePatternResolver(this.getClass().getClassLoader()));
+        return provider.findCandidateComponents(scanPackage).stream().map(beanDef -> {
+            try {
+                return Class.forName(beanDef.getBeanClassName());
+            } catch (ClassNotFoundException e) {
+                throw new RemoteException(e);
+            }
+        });
     }
 
     @Override
-    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException
-    {
-        return bean;
-    }
-
-    @Override
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        try {
-            return getFactoryBean(proxy, method).getObject();
-        } catch (Exception e) {
-            // 재연결을 위해 한번더 시도한다.
-            rmiClientMap.remove(getKey(proxy, method));
-            return getFactoryBean(proxy, method).getObject();
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        while (!queue.isEmpty())
+        {
+            String basePackage = queue.poll();
+            findAnnotatedClasses(RemoteClient.class, basePackage).forEach(clazz -> {
+                RemoteClient remoteClient = clazz.getAnnotation(RemoteClient.class);
+                String beanName = clazz.getName();
+                System.out.println("#### postProcessBeanFactory bean name : " + beanName);
+                Object bean = clazz.cast(Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{ clazz }, new RemoteClientInvocationHandler(remoteClient)));
+                System.out.println("#### postProcessBeanFactory bean class.isInstance : " + (clazz.isInstance(bean)));
+                beanFactory.registerSingleton(beanName, bean);
+            });
         }
     }
 
-    private String getKey(Object proxy, Method method) {
-        return proxy.getClass().getName() + method.getName();
-    }
-
-    private FactoryBean getFactoryBean(Object proxy, Method method) {
-        Class<?> returnType = method.getReturnType();
-        return rmiClientMap.computeIfAbsent(getKey(proxy, method), name -> {
-            RemoteClient client = proxy.getClass().getAnnotation(RemoteClient.class);
-            RemoteContext context = method.getAnnotation(RemoteContext.class);
-            Protocol protocol = client.protocol();
-            String urlContext = context != null ? context.context() : method.getName();
-            String port = StringUtils.isEmpty(client.port())? protocol.getDefaultPort() : client.port();
-            String url = protocol.getProtocolName() + "//" + client.ip() + ":" + port + "/" + urlContext;
-            return protocol.getProxyFactoryBean(url, returnType);
-        });
+    @Override
+    public void setImportMetadata(AnnotationMetadata annotationMetadata) {
+        Map<String, Object> attrMap = annotationMetadata.getAnnotationAttributes(EnableRemoteClient.class.getName(), false);
+        AnnotationAttributes attributes = AnnotationAttributes.fromMap(attrMap);
+        String basePackage = attributes.getString("basePackage");
+        queue.add(basePackage);
+        System.out.println("### basePackage : " + basePackage);
     }
 }

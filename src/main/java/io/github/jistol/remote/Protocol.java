@@ -7,8 +7,12 @@ import org.springframework.remoting.httpinvoker.HttpInvokerProxyFactoryBean;
 import org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter;
 import org.springframework.remoting.rmi.RmiProxyFactoryBean;
 import org.springframework.remoting.rmi.RmiServiceExporter;
+import org.springframework.util.StringUtils;
 
 import java.rmi.RemoteException;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Created by kimjh on 2017-03-07.
@@ -49,16 +53,12 @@ public enum Protocol
             rmiServiceExporter.setServiceInterface(remoteServer.serviceInterface());
             rmiServiceExporter.setService(bean);
             rmiServiceExporter.setServiceName(beanName);
-            if (remoteServer.port() != -1)
-            {
-                rmiServiceExporter.setRegistryPort(remoteServer.port());
-            }
-            try
-            {
+            executeif(()-> !StringUtils.isEmpty(remoteServer.host()), ()-> rmiServiceExporter.setRegistryHost(remoteServer.host()));
+            executeif(()-> remoteServer.port() != -1, ()-> rmiServiceExporter.setRegistryPort(remoteServer.port()));
+
+            try {
                 rmiServiceExporter.afterPropertiesSet();
-            }
-            catch (RemoteException e)
-            {
+            } catch (RemoteException e) {
                 throw new FatalBeanException("Exception initializing RmiServiceExporter", e);
             }
             return rmiServiceExporter;
@@ -83,8 +83,14 @@ public enum Protocol
         }
     };
 
+    void executeif(Supplier<Boolean> condition, VoidSupplier executor) {
+        if (condition.get()) { executor.execute(); }
+    }
+
     abstract public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer);
     abstract public FactoryBean getProxyFactoryBean(String url, Class returnType);
     abstract public String getProtocolName();
     abstract public String getDefaultPort();
+
+    private interface VoidSupplier { void execute(); }
 }

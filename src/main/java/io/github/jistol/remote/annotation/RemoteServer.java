@@ -19,5 +19,7 @@ public @interface RemoteServer
 
     int port() default -1;
 
+    String host() default "";
+
     @Required Class<?> serviceInterface();
 }
