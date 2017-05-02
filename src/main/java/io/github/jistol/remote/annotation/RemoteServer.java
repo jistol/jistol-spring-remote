@@ -17,7 +17,7 @@ public @interface RemoteServer
 {
     Protocol protocol() default Protocol.RMI;
 
-    int port() default -1;
+    String port() default "";
 
     String host() default "";
 

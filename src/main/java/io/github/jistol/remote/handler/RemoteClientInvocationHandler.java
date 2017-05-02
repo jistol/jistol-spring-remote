@@ -1,10 +1,12 @@
 package io.github.jistol.remote.handler;
 
-import io.github.jistol.remote.Protocol;
 import io.github.jistol.remote.annotation.RemoteClient;
 import io.github.jistol.remote.annotation.RemoteContext;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.util.StringUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.env.Environment;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -17,10 +19,13 @@ import java.util.concurrent.ConcurrentMap;
 public class RemoteClientInvocationHandler implements InvocationHandler {
     private final ConcurrentMap<String, FactoryBean> rmiClientMap = new ConcurrentHashMap<>();
     private final RemoteClient client;
+    private final Environment environment;
 
-    public RemoteClientInvocationHandler(RemoteClient remoteClient)
+
+    public RemoteClientInvocationHandler(Environment environment, RemoteClient remoteClient)
     {
         this.client = remoteClient;
+        this.environment = environment;
     }
 
     @Override
@@ -47,11 +52,8 @@ public class RemoteClientInvocationHandler implements InvocationHandler {
         Class<?> returnType = method.getReturnType();
         return rmiClientMap.computeIfAbsent(getKey(method), name -> {
             RemoteContext context = method.getAnnotation(RemoteContext.class);
-            Protocol protocol = client.protocol();
             String urlContext = context != null ? context.context() : method.getName();
-            String port = StringUtils.isEmpty(client.port())? protocol.getDefaultPort() : client.port();
-            String url = protocol.getProtocolName() + "//" + client.ip() + ":" + port + "/" + urlContext;
-            return protocol.getProxyFactoryBean(url, returnType);
+            return client.protocol().getProxyFactoryBean(client, urlContext, returnType, environment);
         });
     }
 }

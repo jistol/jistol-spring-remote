@@ -6,12 +6,16 @@ import io.github.jistol.remote.exception.RemoteException;
 import io.github.jistol.remote.handler.RemoteClientInvocationHandler;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportAware;
 import org.springframework.core.annotation.AnnotationAttributes;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -26,14 +30,15 @@ import java.util.stream.Stream;
  * Created by kimjh on 2017-03-07.
  */
 @Configuration
-public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostProcessor
+public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostProcessor, ApplicationContextAware
 {
+    private ApplicationContext applicationContext;
+
     private static final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
 
     private Stream<Class<?>> findAnnotatedClasses(Class<? extends Annotation> annotation, String scanPackage) {
         ClassPathScanningCandidateComponentProvider provider = new ClassPathScanningCandidateComponentProvider(false) {
             @Override protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
-                System.out.println("### isCandidateComponent : " +  beanDefinition.toString());
                 return true;
             }
         };
@@ -50,15 +55,12 @@ public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostPr
 
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        while (!queue.isEmpty())
-        {
+        while (!queue.isEmpty()) {
             String basePackage = queue.poll();
             findAnnotatedClasses(RemoteClient.class, basePackage).forEach(clazz -> {
                 RemoteClient remoteClient = clazz.getAnnotation(RemoteClient.class);
                 String beanName = clazz.getName();
-                System.out.println("#### postProcessBeanFactory bean name : " + beanName);
-                Object bean = clazz.cast(Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{ clazz }, new RemoteClientInvocationHandler(remoteClient)));
-                System.out.println("#### postProcessBeanFactory bean class.isInstance : " + (clazz.isInstance(bean)));
+                Object bean = clazz.cast(Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{ clazz }, new RemoteClientInvocationHandler(applicationContext.getEnvironment(), remoteClient)));
                 beanFactory.registerSingleton(beanName, bean);
             });
         }
@@ -70,6 +72,10 @@ public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostPr
         AnnotationAttributes attributes = AnnotationAttributes.fromMap(attrMap);
         String basePackage = attributes.getString("basePackage");
         queue.add(basePackage);
-        System.out.println("### basePackage : " + basePackage);
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
     }
 }
