@@ -1,6 +1,7 @@
 # jistol-spring-remote
 
 Jistol-spring-remote v2.0 allows you to create Remote Server / Client with simple configuration.
+It runs on JDK 1.8 or later, uses Spring 4.3.7.RELEASE version.
 
 Maven Installation
 ----
@@ -19,7 +20,7 @@ Remote Server
 
 You can set up Spring Remote Server(RMI,HttpInvoker) in only two steps.
 
-Set @EnableRemoteServer on configuration file.
+Add @EnableRemoteServer on configuration file.
 
 ```java
 @SpringBootApplication
@@ -65,7 +66,7 @@ The Remote Client can be configured in two ways.
 
 ### 1. Annotation Base (@RmiClient / @HttpInvokerClient) ###
 
-Set @EnableRemoteClient  on configuration file with `basePackage`.
+Add @EnableRemoteClient  on configuration file with `basePackage`.
 
 ```java
 @SpringBootApplication
