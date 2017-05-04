@@ -1,7 +1,8 @@
 package io.github.jistol.remote;
 
-import io.github.jistol.remote.annotation.RemoteClient;
-import io.github.jistol.remote.annotation.RemoteServer;
+import io.github.jistol.remote.model.RemoteClient;
+import io.github.jistol.remote.model.RemoteServer;
+import io.github.jistol.remote.util.FactoryBeanUtil;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.core.env.Environment;
@@ -9,7 +10,6 @@ import org.springframework.remoting.httpinvoker.HttpInvokerProxyFactoryBean;
 import org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter;
 import org.springframework.remoting.rmi.RmiProxyFactoryBean;
 import org.springframework.remoting.rmi.RmiServiceExporter;
-import org.springframework.util.StringUtils;
 
 import java.rmi.RemoteException;
 import java.util.function.Supplier;
@@ -24,33 +24,26 @@ public enum Protocol
     HTTP {
         @Override public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer, Environment environment) {
             HttpInvokerServiceExporter httpInvokerServiceExporter = new HttpInvokerServiceExporter();
-            httpInvokerServiceExporter.setServiceInterface(remoteServer.serviceInterface());
+            httpInvokerServiceExporter.setServiceInterface(remoteServer.getServiceInterface());
             httpInvokerServiceExporter.setService(bean);
             httpInvokerServiceExporter.afterPropertiesSet();
             return httpInvokerServiceExporter;
         }
 
         @Override public FactoryBean getProxyFactoryBean(RemoteClient remoteClient, String context, Class returnType, Environment environment) {
-            HttpInvokerProxyFactoryBean httpInvokerProxyFactoryBean = new HttpInvokerProxyFactoryBean();
-            httpInvokerProxyFactoryBean.setServiceUrl(getUrl(environment, remoteClient, context, "80"));
-            httpInvokerProxyFactoryBean.setServiceInterface(returnType);
-            httpInvokerProxyFactoryBean.afterPropertiesSet();
-            return httpInvokerProxyFactoryBean;
-        }
-
-        @Override public String getProtocolName() {
-            return "http";
+            HttpInvokerProxyFactoryBean factoryBean = FactoryBeanUtil.getHttpInvokerProxyFactoryBean(getUrl(environment, remoteClient, context, "http", "80"), returnType);
+            return factoryBean;
         }
     },
 
     RMI {
         @Override public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer, Environment environment) {
             RmiServiceExporter rmiServiceExporter = new RmiServiceExporter();
-            rmiServiceExporter.setServiceInterface(remoteServer.serviceInterface());
+            rmiServiceExporter.setServiceInterface(remoteServer.getServiceInterface());
             rmiServiceExporter.setService(bean);
             rmiServiceExporter.setServiceName(beanName);
-            executeif(()-> !StringUtils.isEmpty(remoteServer.host()), ()-> rmiServiceExporter.setRegistryHost(remoteServer.host()));
-            executeif(()-> !StringUtils.isEmpty(remoteServer.port()), ()-> rmiServiceExporter.setRegistryPort(getPort(environment, remoteServer.port(), "1099")));
+            executeif(()-> !isEmpty(remoteServer.getHost()), ()-> rmiServiceExporter.setRegistryHost(remoteServer.getHost()));
+            executeif(()-> !isEmpty(remoteServer.getPort()), ()-> rmiServiceExporter.setRegistryPort(getPort(environment, remoteServer.getPort(), "1099")));
 
             try {
                 rmiServiceExporter.afterPropertiesSet();
@@ -61,29 +54,19 @@ public enum Protocol
         }
 
         @Override public FactoryBean getProxyFactoryBean(RemoteClient remoteClient, String context, Class returnType, Environment environment) {
-            RmiProxyFactoryBean rmiProxyFactoryBean = new RmiProxyFactoryBean();
-            rmiProxyFactoryBean.setServiceUrl(getUrl(environment, remoteClient, context, "443"));
-            rmiProxyFactoryBean.setServiceInterface(returnType);
-            rmiProxyFactoryBean.afterPropertiesSet();
-            return rmiProxyFactoryBean;
-        }
-
-        @Override public String getProtocolName() {
-            return "rmi";
+            RmiProxyFactoryBean factoryBean = FactoryBeanUtil.getRmiProxyFactoryBean(getUrl(environment, remoteClient, context, "rmi", "443"), returnType, remoteClient.isCacheStub(), remoteClient.isLookupStubOnStartup(), remoteClient.isRefreshStubOnConnectFailure());
+            return factoryBean;
         }
     };
 
-    void executeif(Supplier<Boolean> condition, VoidSupplier executor) {
-        if (condition.get()) { executor.execute(); }
-    }
 
     int getPort(Environment environment, String port, String defaultStr) {
         return Integer.parseInt(isEmpty(port)? defaultStr : replace(environment, port));
     }
 
-    String getUrl(Environment environment, RemoteClient client, String urlContext, String defaultPort) {
-        String port = isEmpty(client.port())? defaultPort : replace(environment, client.port());
-        String url = this.getProtocolName() + "://" + replace(environment, client.ip()) + ":" + port + "/" + urlContext;
+    String getUrl(Environment environment, RemoteClient client, String urlContext, String protocol, String defaultPort) {
+        String port = isEmpty(client.getPort())? defaultPort : replace(environment, client.getPort());
+        String url = protocol + "://" + replace(environment, client.getIp()) + ":" + port + "/" + urlContext;
         return url;
     }
 
@@ -98,13 +81,17 @@ public enum Protocol
         return result.toString();
     }
 
-    boolean isEmpty(String str) { return str == null || str.isEmpty(); }
+    public static boolean isEmpty(String str) { return str == null || str.isEmpty(); }
+
+    public static void executeif(Supplier<Boolean> condition, VoidSupplier executor) {
+        if (condition.get()) { executor.execute(); }
+    }
 
     private static final Pattern pattern = Pattern.compile("\\$\\{(\\S+)\\}");
 
+
     abstract public Object getServiceExporter(Object bean, String beanName, RemoteServer remoteServer, Environment environment);
     abstract public FactoryBean getProxyFactoryBean(RemoteClient remoteClient, String context, Class returnType, Environment environment);
-    abstract public String getProtocolName();
 
     private interface VoidSupplier { void execute(); }
 }

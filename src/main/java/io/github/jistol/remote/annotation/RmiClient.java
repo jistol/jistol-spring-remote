@@ -9,8 +9,16 @@ import java.lang.annotation.Target;
  * Created by kimjh on 2017-03-07.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.METHOD })
-public @interface RemoteContext
+@Target({ ElementType.TYPE })
+public @interface RmiClient
 {
-    String context();
+    String ip();
+
+    String port() default "";
+
+    boolean lookupStubOnStartup() default true;
+
+    boolean cacheStub() default  true;
+
+    boolean refreshStubOnConnectFailure() default false;
 }

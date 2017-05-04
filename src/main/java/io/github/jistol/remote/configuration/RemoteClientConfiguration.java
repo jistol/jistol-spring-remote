@@ -1,12 +1,13 @@
 package io.github.jistol.remote.configuration;
 
 import io.github.jistol.remote.annotation.EnableRemoteClient;
-import io.github.jistol.remote.annotation.RemoteClient;
+import io.github.jistol.remote.annotation.HttpInvokerClient;
+import io.github.jistol.remote.annotation.RmiClient;
 import io.github.jistol.remote.exception.RemoteException;
 import io.github.jistol.remote.handler.RemoteClientInvocationHandler;
+import io.github.jistol.remote.model.RemoteClient;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
@@ -15,7 +16,6 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportAware;
 import org.springframework.core.annotation.AnnotationAttributes;
-import org.springframework.core.env.Environment;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -33,6 +33,8 @@ import java.util.stream.Stream;
 public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostProcessor, ApplicationContextAware
 {
     private ApplicationContext applicationContext;
+
+    private final Stream<Class<? extends Annotation>> remoteClients = Stream.of(RmiClient.class, HttpInvokerClient.class);
 
     private static final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
 
@@ -57,11 +59,11 @@ public class RemoteClientConfiguration implements ImportAware, BeanFactoryPostPr
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
         while (!queue.isEmpty()) {
             String basePackage = queue.poll();
-            findAnnotatedClasses(RemoteClient.class, basePackage).forEach(clazz -> {
-                RemoteClient remoteClient = clazz.getAnnotation(RemoteClient.class);
-                String beanName = clazz.getName();
-                Object bean = clazz.cast(Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{ clazz }, new RemoteClientInvocationHandler(applicationContext.getEnvironment(), remoteClient)));
-                beanFactory.registerSingleton(beanName, bean);
+            remoteClients.forEach(client -> {
+                findAnnotatedClasses(client, basePackage).forEach(clazz -> {
+                    Object bean = clazz.cast(Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{ clazz }, new RemoteClientInvocationHandler(applicationContext.getEnvironment(), new RemoteClient(clazz.getAnnotation(client)))));
+                    beanFactory.registerSingleton(clazz.getName(), bean);
+                });
             });
         }
     }
