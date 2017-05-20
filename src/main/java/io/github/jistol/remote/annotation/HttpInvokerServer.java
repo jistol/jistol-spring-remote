@@ -1,6 +1,4 @@
-package io.github.jistol.remote;
-
-import org.springframework.beans.factory.annotation.Required;
+package io.github.jistol.remote.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,12 +10,9 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE })
-public @interface RemoteType
+public @interface HttpInvokerServer
 {
-    Protocol protocol() default Protocol.HTTP;
+    String host() default "";
 
-    int port() default -1;
-
-    @Required
     Class<?> serviceInterface();
 }
